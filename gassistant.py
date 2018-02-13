@@ -8,11 +8,12 @@ import random
 import subprocess
 import re
 import sys
-import psutil
 import logging
 
 import google.auth.transport.requests
 import google.oauth2.credentials
+
+from threading import Thread
 
 from google.assistant.library import Assistant
 from google.assistant.library.event import EventType
@@ -21,7 +22,10 @@ from google.assistant.library.file_helpers import existing_file
 DEVICE_API_URL = 'https://embeddedassistant.googleapis.com/v1alpha2'
 
 from rpitts import say
-from systemactions import Action
+from systemactions import (
+     Action, adjustvolume, restorevolume, systemvolumecontrol,
+     stopplayback, pauseplayback, resumeplayback, muteplayback, unmuteplayback
+)
 from gmusicplayer import gmusicselect, playgmusicplaylist
 
 logging.basicConfig(filename='/opt/RPIGassistant/logs/GassistPi.log', level=logging.DEBUG,
@@ -62,13 +66,13 @@ def process_event(event, device_id):
     Args:
         event(event.Event): The current event to process.
     """
+    print(event)
     if event.type == EventType.ON_CONVERSATION_TURN_STARTED:
+        adjustvolume('30')
         subprocess.Popen(["aplay", "/opt/RPIGassistant/audio-files/Listening.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         GPIO.output(5,GPIO.HIGH)
         led.ChangeDutyCycle(100)
         print()
-
-    print(event)
 
     if (event.type == EventType.ON_RESPONDING_STARTED and event.args and not event.args['is_error_response']):
        GPIO.output(5,GPIO.LOW)
@@ -79,20 +83,27 @@ def process_event(event, device_id):
        GPIO.output(6,GPIO.LOW)
        GPIO.output(5,GPIO.HIGH)
        led.ChangeDutyCycle(100)
-
-    print(event)
+       print()
 
     if (event.type == EventType.ON_CONVERSATION_TURN_TIMEOUT):
         say(random.choice(['sorry, i did not hear what you said', 
                            'sorry, i did not hear anything', 
                            'pardon', 
                            'sorry, have you said anything?']))
+        restorevolume()
+        print()
+
+    if (event.type == EventType.ON_NO_RESPONSE):
+        restorevolume()
+        print()
 
     if (event.type == EventType.ON_CONVERSATION_TURN_FINISHED and
             event.args and not event.args['with_follow_on_turn']):
+        restorevolume()
         GPIO.output(5,GPIO.LOW)
         led.ChangeDutyCycle(0)
         print()
+
     if event.type == EventType.ON_DEVICE_ACTION:
         for command, params in process_device_actions(event, device_id):
             print('Do command', command, 'with params', str(params))
@@ -164,19 +175,56 @@ def main():
         for event in events:
             process_event(event, assistant.device_id)
             usrcmd=event.args
+            if usrcmd is None:
+              usrcmdtext=''
+            else:
+              usrcmdtext=usrcmd.get('text', "")
             # Add user functions
-            if 'shut down'.lower() in str(usrcmd).lower():
+            # Shutdown and reboot actions
+            if 'shut down'.lower() == str(usrcmdtext).lower():
                 assistant.stop_conversation()
                 Action(str(usrcmd).lower())
-            if ('reboot'.lower() in str(usrcmd).lower()) or ('restart'.lower() in str(usrcmd).lower()):
+            if ('reboot'.lower() == str(usrcmdtext).lower()) or ('restart'.lower() == str(usrcmdtext).lower()):
                 assistant.stop_conversation()
                 Action(str(usrcmd).lower())
+            #Volume controls
+            if ('increase playback volume'.lower() in str(usrcmd).lower() or
+                'decrease plaayback volume'.lower() in str(usrcmd).lower() or
+                'set playback volume'.lower() in str(usrcmd).lower()):
+                assistant.stop_conversation()
+                systemvolumecontrol(str(usrcmd).lower())
+            #Playback controls
+            if ('stop'.lower() == str(usrcmdtext).lower() or 'stop music'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               stopplayback()
+            if ('pause'.lower() == str(usrcmdtext).lower() or 'pause music'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               pauseplayback()
+            if ('mute'.lower() == str(usrcmdtext).lower() or 'mute music'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               muteplayback()
+            if ('unmute'.lower() == str(usrcmdtext).lower() or 'unmute music'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               unmuteplayback()
+            if ('resume'.lower() == str(usrcmdtext).lower() or 'resume music'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               resumeplayback()
+            #Google Music
             if ('google music'.lower() in str(usrcmd).lower()
                  or 'on play music'.lower() in str(usrcmd).lower()
                  or 'from play music'.lower() in str(usrcmd).lower()):
                 assistant.stop_conversation()
                 gmusicselect(str(usrcmd).lower())
-                playgmusicplaylist()
+                if (str(usrcmdtext).lower().startswith('loop')):
+                    gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'loop':'true'})
+                elif (str(usrcmdtext).lower().startswith('shuffle')):
+                    gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'shuffle':'true'})
+                elif (str(usrcmdtext).lower().startswith('shuffle and loop') or str(usrcmdtext).lower().startswith('loop and shuffle') or
+                      str(usrcmdtext).lower().startswith('shuffle loop') or str(usrcmdtext).lower().startswith('loop shuffle')):
+                    gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'shuffle':'true','loop':'true'})
+                else:
+                    gmusicplayerthread = Thread(target=playgmusicplaylist, args=())
+                gmusicplayerthread.start()
 
 
 if __name__ == '__main__':
