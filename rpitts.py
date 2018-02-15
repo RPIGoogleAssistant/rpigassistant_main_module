@@ -8,6 +8,7 @@ from settings import readsettings
 ttsfilename="/tmp/say.mp3"
 translator = Translator()
 language=readsettings('rpitts','language')
+ttslanguage=readsettings('rpitts','ttslanguage')
 
 #Text to speech converter with translation
 def say(words):
@@ -16,7 +17,7 @@ def say(words):
     words=words.replace("Text, ",'',1)
     words=words.strip()
     print('Saying ' + words)
-    tts = gTTS(text=words, lang=language, slow=False)
+    tts = gTTS(text=words, lang=ttslanguage, slow=False)
     tts.save(ttsfilename)
     os.system("mpg123 "+ttsfilename)
     os.remove(ttsfilename)

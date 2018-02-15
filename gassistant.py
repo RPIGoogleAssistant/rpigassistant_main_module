@@ -24,9 +24,10 @@ DEVICE_API_URL = 'https://embeddedassistant.googleapis.com/v1alpha2'
 from rpitts import say
 from systemactions import (
      Action, adjustvolume, restorevolume, systemvolumecontrol,
-     stopplayback, pauseplayback, resumeplayback, muteplayback, unmuteplayback
+     stopplayback, pauseplayback, resumeplayback, muteplayback, unmuteplayback,
+     skipplayback, systemupdateprocess
 )
-from gmusicplayer import gmusicselect, playgmusicplaylist
+from gmusicplayer import gmusicselect, playgmusicplaylist, updategmusiclibrary, updategmusicplaylistlibrary
 
 logging.basicConfig(filename='/opt/RPIGassistant/logs/GassistPi.log', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
@@ -89,7 +90,7 @@ def process_event(event, device_id):
         say(random.choice(['sorry, i did not hear what you said', 
                            'sorry, i did not hear anything', 
                            'pardon', 
-                           'sorry, have you said anything?']))
+                           'sorry, have you said something?']))
         restorevolume()
         print()
 
@@ -164,6 +165,8 @@ def main():
 
     with Assistant(credentials, args.device_model_id) as assistant:
         subprocess.Popen(["aplay", "/opt/RPIGassistant/audio-files/Startup.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #updating music libray from google music at startup
+        systemupdateprocess()
         events = assistant.start()
         print('device_model_id:', args.device_model_id + '\n' +
               'device_id:', assistant.device_id + '\n')
@@ -189,7 +192,7 @@ def main():
                 Action(str(usrcmd).lower())
             #Volume controls
             if ('increase playback volume'.lower() in str(usrcmd).lower() or
-                'decrease plaayback volume'.lower() in str(usrcmd).lower() or
+                'decrease playback volume'.lower() in str(usrcmd).lower() or
                 'set playback volume'.lower() in str(usrcmd).lower()):
                 assistant.stop_conversation()
                 systemvolumecontrol(str(usrcmd).lower())
@@ -209,12 +212,45 @@ def main():
             if ('resume'.lower() == str(usrcmdtext).lower() or 'resume music'.lower() == str(usrcmdtext).lower()):
                assistant.stop_conversation()
                resumeplayback()
+            #Track change controls
+            if (re.match(r"(skip|play)\s*(to)?\s*(next|forward)\s*(song|track)?", usrcmdtext.lower(), re.I|re.I)):
+               assistant.stop_conversation()
+               matchingobj=re.match(r"(skip|play)\s*(to)?\s*(next|forward)\s*(song|track)?", usrcmdtext.lower(), re.I|re.I)
+               skipplayback(1)
+            if (re.match(r"(next|forward)\s*(song|track)", usrcmdtext.lower(), re.I|re.I)):
+               assistant.stop_conversation()
+               matchingobj=re.match(r"(next|forward)\s*(song|track)", usrcmdtext.lower(), re.I|re.I)
+               skipplayback(1)
+            if (re.match(r"(skip|play)\s*(to)?\s*(last|back|backward)\s*(song|track)?", usrcmdtext.lower(), re.I|re.I)):
+               assistant.stop_conversation()
+               matchingobj=re.match(r"(skip|play)\s*(to)?\s*(last|back|backward)\s*(song|track)?", usrcmdtext.lower(), re.I|re.I)
+               skipplayback(-1)
+            if (re.match(r"(last|back|backward)\s*(song|track)", usrcmdtext.lower(), re.I|re.I)):
+               assistant.stop_conversation()
+               matchingobj=re.match(r"(last|back|backward)\s*(song|track)", usrcmdtext.lower(), re.I|re.I)
+               skipplayback(-1)
+            if ('skip'.lower() == str(usrcmdtext).lower() or 'next'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               skipplayback(1)
+            if ('previous'.lower() == str(usrcmdtext).lower()):
+               assistant.stop_conversation()
+               skipplayback(-1)
             #Google Music
-            if ('google music'.lower() in str(usrcmd).lower()
-                 or 'on play music'.lower() in str(usrcmd).lower()
-                 or 'from play music'.lower() in str(usrcmd).lower()):
+            #updating music libraries
+            if ('update music library'.lower() == str(usrcmdtext).lower()):
+                 assistant.stop_conversation()
+                 say('Updating your Google Music library')
+                 gmusiclibraryupdated=updategmusiclibrary()
+                 gmusicplaylistlibraryupdated=updategmusicplaylistlibrary()
+                 if (gmusiclibraryupdated is not None and gmusicplaylistlibraryupdated is not None):
+                    say('Done')
+            #song selection
+            if (re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play\s*(.*)?\s*(song|album|artist|playlist)\s*(.*)\s*(on|from)?\s*(.*)?", 
+                usrcmdtext.lower(), re.I) or
+                re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play all songs\s*(on|from)?\s*(.*)?",
+                usrcmdtext.lower(), re.I)):
                 assistant.stop_conversation()
-                gmusicselect(str(usrcmd).lower())
+                gmusicselect(str(usrcmdtext).lower())
                 if (str(usrcmdtext).lower().startswith('loop')):
                     gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'loop':'true'})
                 elif (str(usrcmdtext).lower().startswith('shuffle')):
