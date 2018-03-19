@@ -13,8 +13,6 @@ import logging
 import google.auth.transport.requests
 import google.oauth2.credentials
 
-from threading import Thread
-
 from google.assistant.library import Assistant
 from google.assistant.library.event import EventType
 from google.assistant.library.file_helpers import existing_file
@@ -27,7 +25,8 @@ from systemactions import (
      stopplayback, pauseplayback, resumeplayback, muteplayback, unmuteplayback,
      skipplayback, systemupdateprocess
 )
-from gmusicplayer import gmusicselect, playgmusicplaylist, updategmusiclibrary, updategmusicplaylistlibrary
+from mediaplayer import mediaplayer, updatemedialibraries, getshufflestatus, getloopstatus, parse_music_query
+from gmusicplayer import updategmusiclibrary
 
 logging.basicConfig(filename='/opt/RPIGassistant/logs/GassistPi.log', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
@@ -164,9 +163,9 @@ def main():
                                                             **json.load(f))
 
     with Assistant(credentials, args.device_model_id) as assistant:
-        subprocess.Popen(["aplay", "/opt/RPIGassistant/audio-files/Startup.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        #updating music libray from google music at startup
+        #updating at startup
         systemupdateprocess()
+        subprocess.Popen(["aplay", "/opt/RPIGassistant/audio-files/Startup.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         events = assistant.start()
         print('device_model_id:', args.device_model_id + '\n' +
               'device_id:', assistant.device_id + '\n')
@@ -241,26 +240,13 @@ def main():
                  assistant.stop_conversation()
                  say('Updating your Google Music library')
                  gmusiclibraryupdated=updategmusiclibrary()
-                 gmusicplaylistlibraryupdated=updategmusicplaylistlibrary()
-                 if (gmusiclibraryupdated is not None and gmusicplaylistlibraryupdated is not None):
+                 if (gmusiclibraryupdated is not None):
                     say('Done')
             #song selection
-            if (re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play\s*(.*)?\s*(song|album|artist|playlist)\s*(.*)\s*(on|from)?\s*(.*)?", 
-                usrcmdtext.lower(), re.I) or
-                re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play all songs\s*(on|from)?\s*(.*)?",
-                usrcmdtext.lower(), re.I)):
+            if (re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play\s*(.*)?\s*(song|album|artist|playlist)",usrcmdtext.lower(),re.I) or
+                re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play all songs\s*(on|from)?\s*(.*)?",usrcmdtext.lower(),re.I)):
                 assistant.stop_conversation()
-                gmusicselect(str(usrcmdtext).lower())
-                if (str(usrcmdtext).lower().startswith('loop')):
-                    gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'loop':'true'})
-                elif (str(usrcmdtext).lower().startswith('shuffle')):
-                    gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'shuffle':'true'})
-                elif (str(usrcmdtext).lower().startswith('shuffle and loop') or str(usrcmdtext).lower().startswith('loop and shuffle') or
-                      str(usrcmdtext).lower().startswith('shuffle loop') or str(usrcmdtext).lower().startswith('loop shuffle')):
-                    gmusicplayerthread = Thread(target=playgmusicplaylist, kwargs={'shuffle':'true','loop':'true'})
-                else:
-                    gmusicplayerthread = Thread(target=playgmusicplaylist, args=())
-                gmusicplayerthread.start()
+                mediaplayer(usrcmdtext.lower())
 
 
 if __name__ == '__main__':

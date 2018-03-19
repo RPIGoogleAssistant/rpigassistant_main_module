@@ -9,7 +9,8 @@ from mpvplayer import (
      mpvplayerstop, mpvplayercycle, mpvplayermute, mpvplayerunmute,
      mpvplayerskip
 )
-from gmusicplayer import stopgmusicplayer, updategmusiclibrary, updategmusicplaylistlibrary
+from mediaplayer import stopmediaplayer, updatemedialibraries
+from gmusicplayer import updategmusiclibrary
 
 #System power controls
 #Shutdown reboot controls
@@ -30,8 +31,8 @@ def Action(phrase):
 #System updates
 #Update music library etc.
 def systemupdateprocess():
-    gmusiclibrayupdated=updategmusiclibrary()
-    gmusicplaylistlibraryupdated=updategmusicplaylistlibrary()
+    medialibraryupdate=updatemedialibraries()
+    print("Startup update done")
 
 #Playback volume controls
 #Temporary adjustment for playback volume
@@ -92,7 +93,7 @@ def systemvolumecontrol(querystring):
 
 #Playback play controls
 def stopplayback():
-    stopgmusicplayer()
+    stopmediaplayer()
 
 def pauseplayback():
     mpvplayercycle()
