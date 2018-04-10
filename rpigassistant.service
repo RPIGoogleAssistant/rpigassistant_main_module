@@ -1,0 +1,18 @@
+[Unit]
+Description=Google Assistant-Voice
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Environment=VIRTUAL_ENV=/opt/RPIGassistant/env
+Environment=PATH=/home/pi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/RPIGassistant/env/bin/python -u /opt/RPIGassistant/gassistant.py --device_model_id 'rpigassistant-20180410161103'
+
+WorkingDirectory=/opt/RPIGassistant/
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
