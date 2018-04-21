@@ -6,7 +6,7 @@ After=network-online.target
 [Service]
 Environment=VIRTUAL_ENV=/opt/RPIGassistant/env
 Environment=PATH=/home/pi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/opt/RPIGassistant/env/bin/python -u /opt/RPIGassistant/gassistant.py --device_model_id 'rpigassistant-20180410161103'
+ExecStart=/opt/RPIGassistant/env/bin/python -u /opt/RPIGassistant/gassistant.py --device_model_id 'XXXX'
 
 WorkingDirectory=/opt/RPIGassistant/
 StandardOutput=inherit
