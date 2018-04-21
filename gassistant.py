@@ -246,6 +246,7 @@ def main():
             if (re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play\s*(.*)?\s*(song|album|artist|playlist)",usrcmdtext.lower(),re.I) or
                 re.match(r"((shuffle|loop)\s*(and)?\s*(shuffle|loop)?\s*)?play all songs\s*(on|from)?\s*(.*)?",usrcmdtext.lower(),re.I)):
                 assistant.stop_conversation()
+                stopplayback()
                 mediaplayer(usrcmdtext.lower())
 
 

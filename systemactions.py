@@ -77,7 +77,15 @@ def systemvolumecontrol(querystring):
        value=volumectrls[2]
        if value == 'None':
           value = '10'
-       if value == 'maximum':
+       elif value == 'maximum':
+          value = '100'
+       elif (not value) or (value is None):
+          say('Sorry you did not say the correct keywords')
+          value = mpvplayergetvolume()
+       elif (not value.isnumeric()):
+          say('Sorry you did not say the correct keywords')
+          value = mpvplayergetvolume()
+       if int(value) > 100:
           value = '100'
        if (operator == 'to') or (operator == 'None'):
           setvolume(value)
